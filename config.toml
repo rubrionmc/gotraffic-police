@@ -1,0 +1,18 @@
+[proxy]
+listen = ":25565"
+
+[backends]
+servers = [
+  "localhost:9001",
+  "localhost:9002"
+]
+
+[ratelimit]
+window_seconds = 10
+max_status_requests = 5
+max_login_requests = 3
+ban_seconds = 30
+
+[messages]
+static_motd = "§cRate limited\n§7Please wait..."
+kick_message = "§cToo many requests.\n§7Try again later."
