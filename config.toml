@@ -8,6 +8,6 @@ healthcheck_interval = "5s"
 
 [backends]
 servers = [
-  "localhost:9001",
-  "localhost:9002"
+  "localhost:25575",
+  "localhost:25576"
 ]
