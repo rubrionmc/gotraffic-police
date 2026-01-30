@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"strings"
 	"sync"
 	"time"
 )
@@ -33,12 +32,13 @@ func (b *Backend) SetHealthy(healthy bool) {
 type ProxyServer struct {
 	listenAddr string
 	backends   []*Backend
+	cfg        *Config
 	mu         sync.RWMutex
 }
 
-func NewProxyServer(listenAddr string, backendAddress []string) *ProxyServer {
-	backends := make([]*Backend, len(backendAddress))
-	for i, addr := range backendAddress {
+func NewProxyServer(cfg *Config) *ProxyServer {
+	backends := make([]*Backend, len(cfg.Backends.Servers))
+	for i, addr := range cfg.Backends.Servers {
 		backends[i] = &Backend{
 			Address: addr,
 			Healthy: false,
@@ -46,13 +46,14 @@ func NewProxyServer(listenAddr string, backendAddress []string) *ProxyServer {
 	}
 
 	return &ProxyServer{
-		listenAddr: listenAddr,
+		listenAddr: cfg.Server.Listen,
 		backends:   backends,
+		cfg:        cfg,
 	}
 }
 
 func (p *ProxyServer) healthCheck(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(p.cfg.Timeouts.HealthcheckInterval)
 	defer ticker.Stop()
 
 	p.checkAllBackends()
@@ -70,21 +71,22 @@ func (p *ProxyServer) healthCheck(ctx context.Context) {
 func (p *ProxyServer) checkAllBackends() {
 	for _, backend := range p.backends {
 		go func(b *Backend) {
-			conn, err := net.DialTimeout("tcp", b.Address, 3*time.Second)
+			conn, err := net.DialTimeout(
+				"tcp",
+				b.Address,
+				p.cfg.Timeouts.HealthcheckDial,
+			)
 			if err != nil {
 				if b.IsHealthy() {
-					log.Printf("[⚠] Backend %s is DOWN", b.Address)
+					log.Printf("[⚠] Backend %s DOWN", b.Address)
 				}
 				b.SetHealthy(false)
 				return
 			}
-			err = conn.Close()
-			if err != nil {
-				return
-			}
+			_ = conn.Close()
 
 			if !b.IsHealthy() {
-				log.Printf("[✓] Backend %s is UP", b.Address)
+				log.Printf("[✓] Backend %s UP", b.Address)
 			}
 			b.SetHealthy(true)
 		}(backend)
@@ -108,13 +110,17 @@ func (p *ProxyServer) handleConnection(clientConn net.Conn) {
 
 	backend := p.getHealthyBackend()
 	if backend == nil {
-		log.Printf("[✗] No healthy backends available for %s", clientConn.RemoteAddr())
+		log.Printf("[✗] No healthy backend for %s", clientConn.RemoteAddr())
 		return
 	}
 
-	backendConn, err := net.DialTimeout("tcp", backend.Address, 5*time.Second)
+	backendConn, err := net.DialTimeout(
+		"tcp",
+		backend.Address,
+		p.cfg.Timeouts.BackendDial,
+	)
 	if err != nil {
-		log.Printf("[✗] Failed to connect to backend %s: %v", backend.Address, err)
+		log.Printf("[✗] Backend connect failed %s: %v", backend.Address, err)
 		backend.SetHealthy(false)
 		return
 	}
@@ -125,65 +131,33 @@ func (p *ProxyServer) handleConnection(clientConn net.Conn) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	// client -> backend
 	go func() {
 		defer wg.Done()
-		_, err := io.Copy(backendConn, clientConn)
-		if err != nil {
-			log.Printf("[✗] Error copying client -> backend: %v", err)
-		}
-		err = backendConn.(*net.TCPConn).CloseWrite()
-		if err != nil {
-			return
-		}
+		_, _ = io.Copy(backendConn, clientConn)
 	}()
 
-	// backend -> client
 	go func() {
 		defer wg.Done()
-		_, err := io.Copy(clientConn, backendConn)
-		if err != nil {
-			log.Printf("[✗] Error copying backend -> client: %v", err)
-		}
-		err = clientConn.(*net.TCPConn).CloseWrite()
-		if err != nil {
-			return
-		}
+		_, _ = io.Copy(clientConn, backendConn)
 	}()
 
 	wg.Wait()
-	log.Printf("[✓] Connection closed: %s", clientConn.RemoteAddr())
+	log.Printf("[✓] Connection closed %s", clientConn.RemoteAddr())
 }
 
 func (p *ProxyServer) Start(ctx context.Context) error {
 	listener, err := net.Listen("tcp", p.listenAddr)
 	if err != nil {
-		return fmt.Errorf("failed to start listener: %v", err)
+		return fmt.Errorf("listen failed: %w", err)
 	}
-	defer func(listener net.Listener) {
-		err := listener.Close()
-		if err != nil {
-			log.Printf("[✗] Error closing listener: %v", err)
-		}
-	}(listener)
+	defer listener.Close()
 
-	log.Printf("[i] TCP Proxy running on %s", p.listenAddr)
-	log.Printf("[i] Backends:")
+	log.Printf("[i] TCP Proxy listening on %s", p.listenAddr)
 	for i, b := range p.backends {
-		log.Printf("[%d] %s", i+1, b.Address)
+		log.Printf("[i] Backend %d: %s", i+1, b.Address)
 	}
 
 	go p.healthCheck(ctx)
-
-	time.Sleep(1 * time.Second)
-
-	go func() {
-		<-ctx.Done()
-		err := listener.Close()
-		if err != nil {
-			log.Printf("[✗] Error closing listener: %v", err)
-		}
-	}()
 
 	for {
 		conn, err := listener.Accept()
@@ -192,7 +166,8 @@ func (p *ProxyServer) Start(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			default:
-				log.Printf("[✗] Error accepting connection: %v", err)
+				log.Printf("[✗] Accept error: %v", err)
+				continue
 			}
 		}
 
@@ -201,24 +176,22 @@ func (p *ProxyServer) Start(ctx context.Context) error {
 }
 
 func main() {
-	listenAddr := flag.String("listen", ":25565", "Listen address (e.g., :25565)")
-	backendsFlag := flag.String("backends", "", "Comma-separated list of backend servers (e.g., 'localhost:9001,localhost:9002')")
+	configPath := flag.String("c", "", "Config file path (default: ./config.toml)")
 	flag.Parse()
 
-	if *backendsFlag == "" {
-		log.Fatal("[✗] Please specify backends with -backends flag")
+	cfg, err := LoadConfig(*configPath)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	backendAddress := strings.Split(*backendsFlag, ",")
-	for i := range backendAddress {
-		backendAddress[i] = strings.TrimSpace(backendAddress[i])
+	if len(cfg.Backends.Servers) == 0 {
+		log.Fatal("[✗] No backends defined")
 	}
-
-	proxy := NewProxyServer(*listenAddr, backendAddress)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	proxy := NewProxyServer(cfg)
 	if err := proxy.Start(ctx); err != nil {
 		log.Fatal(err)
 	}

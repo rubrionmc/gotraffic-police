@@ -1,0 +1,13 @@
+[server]
+listen = ":25565"
+
+[timeouts]
+backend_dial = "5s"
+healthcheck_dial = "3s"
+healthcheck_interval = "5s"
+
+[backends]
+servers = [
+  "localhost:25575",
+  "localhost:25576"
+]
