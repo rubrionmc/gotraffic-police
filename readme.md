@@ -161,8 +161,8 @@ Distributed under the RPL. See `LICENSE` for details.
 [forks-shield]: https://img.shields.io/github/forks/rubrionmc/gotraffic-police.svg?style=for-the-badge
 [forks-url]: https://github.com/rubrionmc/gotraffic-police/network/members
 [license-shield]: https://img.shields.io/badge/License-RPL-blue.svg?style=for-the-badge
-[license-url]: https://github.com/rubrionmc/gogate/blob/main/LICENSE.txt
-[stars-shield]: https://img.shields.io/github/stars/rubrionmc/gogate?style=for-the-badge
-[stars-url]: https://github.com/rubrionmc/gogate/stargazers
-[issues-shield]: https://img.shields.io/github/issues/rubrionmc/gogate?style=for-the-badge
-[issues-url]: https://github.com/rubrionmc/gogate/issues
+[license-url]: https://github.com/rubrionmc/gotraffic-police/blob/main/LICENSE.txt
+[stars-shield]: https://img.shields.io/github/stars/rubrionmc/gotraffic-police?style=for-the-badge
+[stars-url]: https://github.com/rubrionmc/gotraffic-police/stargazers
+[issues-shield]: https://img.shields.io/github/issues/rubrionmc/gotraffic-police?style=for-the-badge
+[issues-url]: https://github.com/rubrionmc/gotraffic-police/issues
