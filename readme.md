@@ -150,7 +150,7 @@ Contributions are welcome!
 
 ## License
 
-Distributed under the Unlicense. See `LICENSE` for details.
+Distributed under the RPL. See `LICENSE` for details.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
