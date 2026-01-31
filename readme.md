@@ -156,10 +156,10 @@ Distributed under the RPL. See `LICENSE` for details.
 
 <!-- SHIELDS -->
 
-[contributors-shield]: https://img.shields.io/github/contributors/othneildrew/Best-README-Template.svg?style=for-the-badge
-[contributors-url]: https://github.com/othneildrew/Best-README-Template/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/othneildrew/Best-README-Template.svg?style=for-the-badge
-[forks-url]: https://github.com/othneildrew/Best-README-Template/network/members
+[contributors-shield]: https://img.shields.io/github/contributors/rubrionmc/gotraffic-police.svg?style=for-the-badge
+[contributors-url]: https://github.com/rubrionmc/gotraffic-police/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/rubrionmc/gotraffic-police.svg?style=for-the-badge
+[forks-url]: https://github.com/rubrionmc/gotraffic-police/network/members
 [license-shield]: https://img.shields.io/badge/License-RPL-blue.svg?style=for-the-badge
 [license-url]: https://github.com/rubrionmc/gogate/blob/main/LICENSE.txt
 [stars-shield]: https://img.shields.io/github/stars/rubrionmc/gogate?style=for-the-badge
